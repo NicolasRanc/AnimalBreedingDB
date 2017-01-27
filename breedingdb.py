@@ -14,8 +14,8 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS progenies(
    	id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
    	name TEXT NOT NULL,
-   	male_parent TEXT DEFAUT NULL,
-   	female_parent TEXT DEFAUT NULL,
+   	male_parent INTEGER DEFAUT NULL,
+   	female_parent INTEGER DEFAUT NULL,
    	sex TEXT DEFAUT NULL,
    	birth_year TEXT DEFAUT NULL,
    	FOREIGN KEY(male_parent) REFERENCES temp_progenies(id),
@@ -24,32 +24,46 @@ CREATE TABLE IF NOT EXISTS progenies(
 """)
 conn.commit()
 
-def get_animal_from_db():
+#create temporary table for progenies
+conn = sqlite3.connect('./db/lievredb.db')
+cursor = conn.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS TempProgenies(
+   	id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+   	name TEXT NOT NULL,
+   	male_parent TEXT DEFAUT NULL,
+   	female_parent TEXT DEFAUT NULL,
+   	sex TEXT DEFAUT NULL,
+   	birth_year TEXT DEFAUT NULL,
+   	)
+""")
+conn.commit()
+
+def get_animal_from_db(table):
 	actual_animal_db={}
-	cursor.execute("""SELECT id, name FROM progenies""")
+	cursor.execute("""SELECT id, name FROM"""+table)
 	rows = cursor.fetchall()
 	for row in rows:
 		actual_animal_db[row[1]]=row[0]
 	return actual_animal_db
 
-def set_animal_to_db(list_to_db):
+def set_animal_to_db(table,list_to_db):
 	cursor.executemany("""
-	INSERT INTO progenies(name, male_parent,female_parent,sex,birth_year) VALUES(?, ?, ?, ?, ?)""", list_to_db
+	INSERT INTO"""+table+""" progenies(name, male_parent,female_parent,sex,birth_year) VALUES(?, ?, ?, ?, ?)""", list_to_db
 	)
 	conn.commit()
 
 progenies_to_db=list()
 
 for individuals,pedigree_ind in test.items():
-	if pedigree_ind.cross==0:
-		progenies_to_db.append([
-		individuals,
-		pedigree_ind.parents[0],
-		pedigree_ind.parents[1],
-		pedigree_ind.sex,
-		"NULL"])
+	progenies_to_db.append([
+	individuals,
+	pedigree_ind.parents[0],
+	pedigree_ind.parents[1],
+	pedigree_ind.sex,
+	"NULL"])
 
-actual_progenies_db=get_animal_from_db()
+actual_progenies_db=get_animal_from_db("TempTable")
 
 list_of_animal = [i[0] for i in progenies_to_db]
 list_of_male = set([i[1] for i in progenies_to_db])

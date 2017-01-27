@@ -65,15 +65,15 @@ class Pedigree(dict):
 
 
 	def ancestors_list(self,individus,count = 1):
-		"""Parse pedigree tree and retreive list of ancestors for one animal."""
-		ancestor_list = []
+		"""Parse pedigree tree and retreive dict of ancestors for one animal (iterative analysis)."""
+		ancestor_dict = {}
 		try:
 			for x in self[individus].parents:
-				ancestor_list.append((x,count))
-				ancestor_list.extend(self.ancestors_list(x,count+1))
+				ancestor_dict[x]=count
+				self.ancestors_list(x,count+1)
 		except KeyError:
 			pass
-		return ancestor_list
+		return ancestor_dict
 
 
 	def test_common_par_grdpar(self,male,female):
@@ -137,89 +137,71 @@ class Pedigree(dict):
 		#get list of progenies, dams, sires and mates
 		list_of_progenies = list(self.keys())
 		list_of_mates = [self[relatives].parents for relatives in self]
-		list_of_fathers = [i[0] for i in list_of_mates]
-		list_of_mothers = [i[1] for i in list_of_mates]
+		list_of_parents = set([self[relatives].parents[0] for relatives in self]) | set([self[relatives].parents[1] for relatives in self])
 
-		total_nb_ind = len(set(list_of_progenies) | set(list_of_fathers) | set(list_of_mothers))
+
+		total_nb_ind = len(set(list_of_progenies) | list_of_parents)
 
 		#calculation of relatedness for founders
 		relatedness_dict = {}
-		female_founders = [i for i in list_of_mothers if i not in list_of_progenies]
-		male_founders = [j for j in list_of_fathers if j not in list_of_progenies]
+		founders = [i for i in list_of_parents if i not in list_of_progenies]
 
-		for j in male_founders:
-			for i in male_founders:
+		for j in founders:
+			for i in founders:
 				if j == i:
 					relatedness_dict[(j,i)] = 1/2
 				else:
 					relatedness_dict[(j,i)] = 0
-
-		for j in female_founders:
-			for i in female_founders:
-				if j == i:
-					relatedness_dict[(j,i)] = 1/2
-				else:
-					relatedness_dict[(j,i)] = 0
-
-		for j in male_founders:
-			for i in female_founders:
-				relatedness_dict[(j,i)] = 0
-				relatedness_dict[(i,j)] = 0
 		
 		#Prepare list of total parents that will be solved first 
 		solving_mates = []
-		solved_individuals = set(female_founders)|set(male_founders)
+		solved_individuals = founders[:]
 		
 		#loop for all nodes of the pedigree
 		while 1:
 
 			if solving_mates == []:
-				solving_mates = [x for x in list(relatedness_dict) if x in list_of_mates]#Define mates that will be solved for highest node of pedigree
+				#Define mates that will be used to solved for highest node of pedigree
+				solving_mates = [x for x in relatedness_dict.keys() if x in list_of_mates]#Extract mates that are already in relatedness_dict 
 				test_mates = solving_mates[:]
 			else:
-				solving_mates = [x for x in list(relatedness_dict) if x in list_of_mates and x not in test]#Define mates that will be solved for below nodes of pedigree
+				#Define mates that will be used to solved for below nodes of pedigree
+				solving_mates = [x for x in list(relatedness_dict) if x in list_of_mates and x not in test_mates]
 				test_mates.extend(solving_mates)
 
 			#First loop to calculate relatedness between progeny and parents + within progeny inbreeding
-			for tuple_mate in solving_mates: #mates to be analyzed (ind1,ind2)
-				# enumerate indexes the list. Index of progeny(ies) for a single cross from list of Mates
-				for progeny in [index for index,y in enumerate(list_of_mates) if y == tuple_mate]:#for each progeny(ies)
-					progeny_for_relatedness = list_of_progenies[progeny]#get progeny name from index
-					relatedness_dict[(progeny_for_relatedness,progeny_for_relatedness)] = 1/2*(1+relatedness_dict[tuple_mate])#inbreeding from parent of progeny_for_relatedness (in y)
-					relatedness_dict[(progeny_for_relatedness,tuple_mate[0])] = relatedness_dict[(tuple_mate[0],progeny_for_relatedness)]=1/2*relatedness_dict[(tuple_mate[0],tuple_mate[0])]
-					relatedness_dict[(progeny_for_relatedness,tuple_mate[1])] = relatedness_dict[(tuple_mate[1],progeny_for_relatedness)]=1/2*relatedness_dict[(tuple_mate[1],tuple_mate[1])]
-					
-					solved_individuals.add(progeny_for_relatedness)
+			for mate_tuple in solving_mates: #mates to be analyzed
+				#for progeny,animal in self.items():
+				for progeny,animal in test.items():
+					if animal.parents == mate_tuple: #for each progeny(ies) calculate relatedness with each parents + inbreeding coef
+						relatedness_dict[(progeny,progeny)] = 1.0/2*(relatedness_dict[mate_tuple])#inbreeding
+						relatedness_dict[(progeny,mate_tuple[0])] = relatedness_dict[(mate_tuple[0],progeny)]=1.0/2*relatedness_dict[(mate_tuple[0],mate_tuple[0])] + 1.0/2*relatedness_dict[(mate_tuple[0],mate_tuple[1])]
+						relatedness_dict[(progeny,mate_tuple[1])] = relatedness_dict[(mate_tuple[1],progeny)]=1.0/2*relatedness_dict[(mate_tuple[1],mate_tuple[1])] + 1.0/2*relatedness_dict[(mate_tuple[0],mate_tuple[1])]
+						solved_individuals.append(progeny)
 			
 			#Seconf loop to calculate relatedness between progeny and and other individuals
-			for tuple_mate in solving_mates:
-				# enumerate indexes the list. Index of progeny(ies) for a single cross from list of Mates
-				for progeny in [index for index,y in enumerate(list_of_mates) if y == tuple_mate]:#for each progeny(ies)
-					progeny_for_relatedness = list_of_progenies[progeny]#get progeny name from index
-
-					for z in [z for z in solved_individuals if z != progeny_for_relatedness]:
-						
-						if ((progeny_for_relatedness,z) not in relatedness_dict and
-						   (z,progeny_for_relatedness) not in relatedness_dict):
-							ancestors = [val for sublist in self.ancestors_list(progeny_for_relatedness) for val in sublist]
-
-							if z in ancestors:
-								chain_ancestry = ancestors[ancestors.index(z)+1]
-								relatedness_dict[(progeny_for_relatedness,z)] = relatedness_dict[(z,progeny_for_relatedness)]=(1/2)**(chain_ancestry+1)
-
-							elif z not in self.keys():
-								relatedness_dict[(progeny_for_relatedness,z)] = relatedness_dict[(z,progeny_for_relatedness)] = 0
-
-							else:
-								p = self[progeny_for_relatedness].parents[0]
-								pprim = self[z].parents[0]
-								m = self[progeny_for_relatedness].parents[1]
-								mprim = self[z].parents[1]
-								relatedness_dict[(progeny_for_relatedness,z)] = relatedness_dict[(z,progeny_for_relatedness)]=(
-								1/4*relatedness_dict[(p,pprim)] +
-								1/4*relatedness_dict[(p,mprim)] +
-								1/4*relatedness_dict[(m,pprim)] +
-								1/4*relatedness_dict[(m,mprim)])
+			for mate_tuple in solving_mates:
+				#for progeny,animal in self.items():#for each progeny(ies)
+				for progeny,animal in test.items():
+					if animal.parents == mate_tuple:						
+						for z in solved_individuals:#estimate relatedness of progeny with solved individuals
+							if z != progeny and (progeny,z) not in relatedness_dict:
+									ancestry = self.ancestors_list(progeny)
+									if z in [indiv for indiv in ancestry.values()]:#if z is ancestor of progeny (higher than parent) so calculation is simply 1/2^(level of relatedness)
+										chain_ancestry = ancestry[z]
+										relatedness_dict[(progeny,z)] = relatedness_dict[(z,progeny)]=((1.0/2)**(chain_ancestry+1))*(1+relatedness_dict[(z,z)])#chain_ancestry+1 to get # of ind in relatedness chain		
+									elif z not in self.keys():#if z is solved but not declared as pedigree entry
+										relatedness_dict[(progeny,z)] = relatedness_dict[(z,progeny)] = 0		
+									else:# z is solved and declared as pedigree entry
+										p = self[progeny].parents[0]
+										pprim = self[z].parents[0]
+										m = self[progeny].parents[1]
+										mprim = self[z].parents[1]
+										relatedness_dict[(progeny,z)] = relatedness_dict[(z,progeny)]=(
+										1.0/4*relatedness_dict[(p,pprim)] +
+										1.0/4*relatedness_dict[(p,mprim)] +
+										1.0/4*relatedness_dict[(m,pprim)] +
+										1.0/4*relatedness_dict[(m,mprim)])
 			
 			if len(relatedness_dict) >= total_nb_ind**2:
 				break
@@ -241,9 +223,10 @@ if __name__=="__main__":
 	from os import chdir
 	chdir("/home/nicolas/Animal_Breeding_DB/")
 	import rdpedfile
-	file_name = "Lievre_Odile_16.csv"
+	file_name = "Test.csv"
 	test = rdpedfile.read_ped_file(file_name)
 	test = Pedigree(test)
+	print(test)
 	matrix1 = test.related_table()
 	matrix2 = test.cross_table()
 	print(matrix1,"\n")
