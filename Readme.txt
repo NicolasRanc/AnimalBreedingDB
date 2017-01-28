@@ -35,7 +35,7 @@ Tests
 
 >python LievreDB.py
 Uses "Lievre_Odile_16.csv" as input example
-
+relatedness calculation is under review (test from relatedness_rev.py)
 
 
 Contributors
