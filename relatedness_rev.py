@@ -43,7 +43,7 @@ while 1:
 		#for progeny,animal in self.items():
 		for progeny,animal in test.items():
 			if animal.parents == mate_tuple: #for each progeny(ies) calculate relatedness with each parents + inbreeding coef
-				relatedness_dict[(progeny,progeny)] = 1.0/2*(relatedness_dict[mate_tuple])#inbreeding
+				relatedness_dict[(progeny,progeny)] = 1.0/2*(1 + relatedness_dict[mate_tuple])#inbreeding
 				relatedness_dict[(progeny,mate_tuple[0])] = relatedness_dict[(mate_tuple[0],progeny)]=1.0/2*relatedness_dict[(mate_tuple[0],mate_tuple[0])] + 1.0/2*relatedness_dict[(mate_tuple[0],mate_tuple[1])]
 				relatedness_dict[(progeny,mate_tuple[1])] = relatedness_dict[(mate_tuple[1],progeny)]=1.0/2*relatedness_dict[(mate_tuple[1],mate_tuple[1])] + 1.0/2*relatedness_dict[(mate_tuple[0],mate_tuple[1])]
 				solved_individuals.append(progeny)
@@ -57,7 +57,7 @@ while 1:
 					#	chain_ancestry = ancestry[z]
 					#	relatedness_dict[(progeny,z)] = relatedness_dict[(z,progeny)]=((1.0/2)**(chain_ancestry+1))*(1+relatedness_dict[(z,z)])#chain_ancestry+1 to get # of ind in relatedness chain		
 					#elif z not in test.keys():#if z is solved but not declared as pedigree entry
-					if z not in test.keys():
+					if z not in test.keys():#??? Check if needed and row 54 z!=progeny							
 						relatedness_dict[(progeny,z)] = relatedness_dict[(z,progeny)] = 0		
 					else:# z is solved and declared as pedigree entry
 						p = test[progeny].parents[0]
