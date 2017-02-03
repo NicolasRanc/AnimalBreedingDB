@@ -15,6 +15,11 @@ Motivation
 This project has been initiated to support familial hare breeding activity. It is personal project I use to train on Python programming.
 
 
+Dependencies
+
+Need installation of xlsxwriter package
+
+
 
 Installation
 
@@ -23,7 +28,7 @@ To launch the application:
 
 Uses "Lievre_Odile_16.csv" as input example
 
-Code can be freeze for Windows using pyinstaller code:
+Code can be freeze for Windows using pyinstaller package:
 pyinstaller --noconfirm ^
     --onedir --noconsole ^
     --icon=iconexe.ico ^
@@ -35,7 +40,6 @@ Tests
 
 >python LievreDB.py
 Uses "Lievre_Odile_16.csv" as input example
-relatedness calculation is under review (test from relatedness_rev.py)
 
 
 Contributors
